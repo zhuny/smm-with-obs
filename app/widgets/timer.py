@@ -1,6 +1,12 @@
+import base64
+from io import BytesIO
+
 import obsws_python as obs
+from PIL import Image
 from PySide6.QtCore import QTimer
 from obsws_python.error import OBSSDKError, OBSSDKRequestError
+
+from app.detector import SMM2Detector
 
 
 class MyTimer(QTimer):
@@ -8,6 +14,9 @@ class MyTimer(QTimer):
         super().__init__(*args, **kwargs)
 
         self.socket: obs.ReqClient | None = None
+        self.detector = SMM2Detector()
+        self.delay = 0
+
         self.timeout.connect(self.handle)
 
     def start_timer(self):
@@ -22,8 +31,20 @@ class MyTimer(QTimer):
             parent.push_log("연결 해제 - 재시도 필요")
 
     def handle(self):
-        number = self._get_input_value()['smm_clear_number']
-        self.parent().update_value('smm_clear_number', number + 1)
+        if self.delay > 0:
+            self.delay -= 1
+            return
+
+        info = self._get_input_value()
+        screen_encoded = self.socket.get_source_screenshot(
+            info['switch_layer'],
+            'png', 960, 540, -1
+        )
+        image_data = screen_encoded.image_data.split(',', 1)[1]
+        screen_data = base64.b64decode(image_data)
+        screen = Image.open(BytesIO(screen_data))
+        if self.detector.run(screen, self):
+            self.delay = 2
 
     def send_clear_number(self, value):
         info = self._get_input_value()
@@ -34,6 +55,9 @@ class MyTimer(QTimer):
             },
             overlay=True
         )
+
+    def push_log(self, msg):
+        self.parent().push_log(msg)
 
     def _connect_to_obs(self,
                         websocket_port, websocket_password,
