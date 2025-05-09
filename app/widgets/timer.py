@@ -1,5 +1,8 @@
 import base64
+import datetime
+import itertools
 from io import BytesIO
+from pathlib import Path
 
 import obsws_python as obs
 from PIL import Image
@@ -35,14 +38,7 @@ class MyTimer(QTimer):
             self.delay -= 1
             return
 
-        info = self._get_input_value()
-        screen_encoded = self.socket.get_source_screenshot(
-            info['switch_layer'],
-            'png', 960, 540, -1
-        )
-        image_data = screen_encoded.image_data.split(',', 1)[1]
-        screen_data = base64.b64decode(image_data)
-        screen = Image.open(BytesIO(screen_data))
+        screen = self._get_screen()
         if self.detector.run(screen, self):
             self.delay = 2
 
@@ -58,6 +54,29 @@ class MyTimer(QTimer):
 
     def push_log(self, msg):
         self.parent().push_log(msg)
+
+    def screenshot(self):
+        if self.socket is None:
+            self.push_log("OBS 연결 필요")
+            return
+
+        screen = self._get_screen()
+        folder = Path("~/Pictures/zhuny").expanduser()
+        folder.mkdir(exist_ok=True, parents=True)
+
+        now = datetime.datetime.now()
+        file_name = now.strftime("screenshot_%y%m%d%H%M%S.png")
+        screen.save(folder / file_name)
+
+    def _get_screen(self):
+        info = self._get_input_value()
+        screen_encoded = self.socket.get_source_screenshot(
+            info['switch_layer'],
+            'png', 960, 540, -1
+        )
+        image_data = screen_encoded.image_data.split(',', 1)[1]
+        screen_data = base64.b64decode(image_data)
+        return Image.open(BytesIO(screen_data))
 
     def _connect_to_obs(self,
                         websocket_port, websocket_password,

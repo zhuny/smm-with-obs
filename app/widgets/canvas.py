@@ -20,6 +20,7 @@ class MyWidget(QtWidgets.QWidget):
         self.layout = QVBoxLayout(self)
         self.layout.addWidget(self.input_widget)
         self.layout.addWidget(self.start_button)
+        self.layout.addWidget(self.screenshot_button)
         self.layout.addWidget(self.log_edit)
 
     def create_input_list(self):
@@ -52,6 +53,9 @@ class MyWidget(QtWidgets.QWidget):
         self.start_button = QPushButton("시작")
         self.start_button.clicked.connect(self.handle_start_button)
         self.timer = MyTimer(self)
+
+        self.screenshot_button = QPushButton("스크린샷")
+        self.screenshot_button.clicked.connect(self.timer.screenshot)
 
     def create_log_edit(self):
         # 출력될 로고
