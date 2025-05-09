@@ -1,5 +1,7 @@
 import collections
+import json
 import sys
+from pathlib import Path
 
 from PySide6 import QtWidgets
 from PySide6.QtCore import QTimer
@@ -31,7 +33,7 @@ class InputPair:
     def value(self):
         text_or_number = self.edit.text()
         if self.is_number:
-            text_or_number = int(text_or_number)
+            text_or_number = int(text_or_number or 0)
         return text_or_number
 
     def update_value(self, value):
@@ -72,6 +74,14 @@ class MyWidget(QtWidgets.QWidget):
             self.bind_value(inp.name, inp.update_value)
             self.input_layout.addRow(inp.label, inp.edit)
 
+        self.input_backup = Path("~/.zhuny/backup.json").expanduser()
+        self.input_backup.parent.mkdir(exist_ok=True, parents=True)
+        if self.input_backup.is_file():
+            info = json.loads(self.input_backup.read_text())
+            for inp in self.input_list:
+                if inp.name in info:
+                    inp.update_value(info[inp.name])
+
     def create_start_button(self):
         self.start_button = QPushButton("시작")
         self.start_button.clicked.connect(self.handle_start_button)
@@ -99,6 +109,10 @@ class MyWidget(QtWidgets.QWidget):
     def update_value(self, name, value):
         for handler in self.input_bind[name]:
             handler(value)
+
+        input_value = self.get_input_value()
+        input_value = json.dumps(input_value)
+        self.input_backup.write_text(input_value)
 
     def bind_value(self, name, handler):
         self.input_bind[name].append(handler)
