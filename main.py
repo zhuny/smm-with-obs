@@ -1,3 +1,4 @@
+import collections
 import sys
 
 from PySide6 import QtWidgets
@@ -19,6 +20,7 @@ class InputPair:
 
         self.label = QLabel(self.title)
         self.edit = QLineEdit()
+        self.edit.textEdited.connect(self.on_edited)
 
         if is_number:
             self.edit.setValidator(QIntValidator())
@@ -31,6 +33,12 @@ class InputPair:
         if self.is_number:
             text_or_number = int(text_or_number)
         return text_or_number
+
+    def update_value(self, value):
+        self.edit.setText(str(value))
+
+    def on_edited(self):
+        self.parent.update_value(self.name, self.value)
 
 
 class MyWidget(QtWidgets.QWidget):
@@ -57,7 +65,11 @@ class MyWidget(QtWidgets.QWidget):
         ]
         self.input_widget = QWidget()
         self.input_layout = QFormLayout(self.input_widget)
+        self.input_bind = collections.defaultdict(list)
+
         for inp in self.input_list:
+            inp.parent = self
+            self.bind_value(inp.name, inp.update_value)
             self.input_layout.addRow(inp.label, inp.edit)
 
     def create_start_button(self):
@@ -84,6 +96,13 @@ class MyWidget(QtWidgets.QWidget):
         self.log_list.insert(0, msg)
         self.log_edit.setPlainText("\n".join(self.log_list))
 
+    def update_value(self, name, value):
+        for handler in self.input_bind[name]:
+            handler(value)
+
+    def bind_value(self, name, handler):
+        self.input_bind[name].append(handler)
+
 
 class MyTimer(QTimer):
     def __init__(self, *args, **kwargs):
@@ -96,17 +115,33 @@ class MyTimer(QTimer):
         parent = self.parent()
         if self._connect_to_obs(**parent.get_input_value()):
             parent.push_log("인식 시작")
+            self.parent().bind_value('smm_clear_number', self.send_clear_number)
             self.start(1000)
         elif self.socket is not None:
             self.socket.disconnect()
             self.socket = None
             parent.push_log("연결 해제 - 재시도 필요")
 
+    def handle(self):
+        number = self._get_input_value()['smm_clear_number']
+        self.parent().update_value('smm_clear_number', number + 1)
+
+    def send_clear_number(self, value):
+        info = self._get_input_value()
+        self.socket.set_input_settings(
+            info['text_layer'],
+            {
+                'text': f'{value:,}클'
+            },
+            overlay=True
+        )
+
     def _connect_to_obs(self,
                         websocket_port, websocket_password,
                         text_layer, switch_layer,
                         **kwargs):
         parent: MyWidget = self.parent()
+
         parent.push_log(f"연결 시도 (포트: {websocket_port})")
         if self._check_connect_socket(websocket_port, websocket_password):
             parent.push_log("연결 성공")
@@ -146,8 +181,8 @@ class MyTimer(QTimer):
         except OBSSDKRequestError:
             return False
 
-    def handle(self):
-        pass
+    def _get_input_value(self):
+        return self.parent().get_input_value()
 
 
 if __name__ == "__main__":
