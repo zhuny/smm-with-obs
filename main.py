@@ -2,25 +2,35 @@ import sys
 
 from PySide6 import QtWidgets
 from PySide6.QtCore import QTimer
+from PySide6.QtGui import QIntValidator
 from PySide6.QtWidgets import QLineEdit, QLabel, QTextEdit, QFormLayout, QVBoxLayout, QWidget, QGroupBox, QPushButton
 import obsws_python as obs
 from obsws_python.error import OBSSDKError, OBSSDKRequestError
 
 
 class InputPair:
-    def __init__(self, name, title, *, mask=None):
+    def __init__(self, name, title, *, is_number=False, is_password=False):
         self.name = name
         self.title = title
+        self.is_number = is_number
+        self.is_password = is_password
+
+        self.parent: MyWidget | None = None
 
         self.label = QLabel(self.title)
         self.edit = QLineEdit()
 
-        if mask:
-            self.edit.setInputMask(mask)
+        if is_number:
+            self.edit.setValidator(QIntValidator())
+        if is_password:
+            self.edit.setEchoMode(QLineEdit.EchoMode.Password)
 
     @property
     def value(self):
-        return self.edit.text()
+        text_or_number = self.edit.text()
+        if self.is_number:
+            text_or_number = int(text_or_number)
+        return text_or_number
 
 
 class MyWidget(QtWidgets.QWidget):
@@ -39,11 +49,11 @@ class MyWidget(QtWidgets.QWidget):
     def create_input_list(self):
         # 입력해 줘야 할 내용들
         self.input_list = [
-            InputPair("websocket_port", "OBS WebSocket 서버 포트", mask="00000"),
-            InputPair("websocket_password", "OBS WebSocket 서버 비밀번호"),
+            InputPair("websocket_port", "OBS WebSocket 서버 포트", is_number=True),
+            InputPair("websocket_password", "OBS WebSocket 서버 비밀번호", is_password=True),
             InputPair("switch_layer", "스위치 화면 레이어"),
             InputPair("text_layer", "클리어 수 텍스트 레이어"),
-            InputPair("smm_clear_number", "클리어 수", mask="00000")
+            InputPair("smm_clear_number", "클리어 수", is_number=True)
         ]
         self.input_widget = QWidget()
         self.input_layout = QFormLayout(self.input_widget)
