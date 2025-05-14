@@ -1,4 +1,7 @@
 import enum
+import time
+
+from PIL import ImageChops
 
 from app.image import PillowImageWrapper
 
@@ -15,14 +18,18 @@ class Detector:
 
 
 class ColorDetector(Detector):
-    def __init__(self, color, threshold, mode):
+    def __init__(self, color, threshold, mode, box=None):
         self.color = color
         self.threshold = threshold
         self.mode = mode
+        self.box = box
 
     def detect(self, screen: PillowImageWrapper):
         screen_image = screen.get_by_mode(self.mode)
+        if self.box:
+            screen_image = screen_image.crop(self.box)
         histogram = self._split(screen_image.histogram(), 256)
+        total_pixel = screen_image.size[0] * screen_image.size[1]
         channel_count = 0
         total_count = 0
 
@@ -34,10 +41,10 @@ class ColorDetector(Detector):
             channel_count += 1
 
         total_count *= 100
-        threshold = self.threshold * channel_count * screen.total_pixel()
+        threshold = self.threshold * channel_count * total_pixel
 
         # threshold 정하기 위한 값 확인 용
-        # may_threshold = total_count // (channel_count * screen.total_pixel())
+        # may_threshold = total_count // (channel_count * total_pixel)
         # print(self, self.color, total_count, may_threshold)
 
         return total_count > threshold
@@ -74,15 +81,67 @@ class RGBColorDetector(ColorDetector):
 
 class HueColorDetector(ColorDetector):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, mode='HSV', **kwargs)
+        super().__init__(
+            *args,
+            mode='HSV',
+            box=(103, 127, 753, 389),
+            **kwargs
+        )
 
 
 class ImageDetector(Detector):
-    def __init__(self, image):
-        self.image = image
+    def __init__(self, image_path):
+        self.image = PillowImageWrapper.load_from_assets(image_path)
+
+    def detect(self, screen: PillowImageWrapper):
+        img1 = self.image.get_by_mode('RGBA')
+        img2 = screen.get_by_mode('RGBA')
+
+        diff = ImageChops.difference(img1, img2)
+        diff_scale = self._average_scale(diff)
+
+        return diff_scale < 0.1
+
+    def _average_scale(self, image):
+        total_sum, total_count = 0, 0
+
+        for i, value in enumerate(image.histogram()):
+            total_count += value
+            total_sum += value * (i % 256)
+
+        return total_sum / total_count / 255
+
+
+class NotDetector(Detector):
+    def __init__(self, child):
+        self.child = child
 
     def detect(self, screen):
-        pass
+        return not self.child.detect(screen)
+
+
+class ContinueDetector(Detector):
+    def __init__(self, child):
+        self.child = child
+        self.prev_detected_time = []
+
+    def detect(self, screen):
+        current_time = time.time()
+
+        if self.child.detect(screen):
+            prev_detected_time = [
+                t
+                for t in self.prev_detected_time
+                if current_time - 7 < t
+            ]
+            prev_detected_time.append(current_time)
+
+            result = len(prev_detected_time) > 4
+            self.prev_detected_time = prev_detected_time
+
+            return result
+
+        return False
 
 
 class ActionHandler:
@@ -111,34 +170,38 @@ class SMM2Detector:
                 RGBColorDetector((254, 215, 0), 95)
             ),
             ActionHandler(
-                '어마챌 Easy 클리어',
+                '어마챌 Easy 클리어 (클수 += 1)',
                 DetectorState.CLEARED, DetectorState.WAITING,
                 HueColorDetector([121], 50),
                 handler=self.clear_endless
             ),
             ActionHandler(
-                '어마챌 Normal 클리어',
+                '어마챌 Normal 클리어 (클수 += 1)',
                 DetectorState.CLEARED, DetectorState.WAITING,
                 HueColorDetector([58], 50),
                 handler=self.clear_endless
             ),
             ActionHandler(
-                '어마챌 Expert 클리어',
+                '어마챌 Expert 클리어 (클수 += 1)',
                 DetectorState.CLEARED, DetectorState.WAITING,
                 HueColorDetector([22], 50),
                 handler=self.clear_endless
             ),
             ActionHandler(
-                '어마챌 Super Expert 클리어',
+                '어마챌 Super Expert 클리어 (클수 += 1)',
                 DetectorState.CLEARED, DetectorState.WAITING,
                 HueColorDetector([180], 50),
                 handler=self.clear_endless
             ),
-            # ActionHandler(
-            #     '어마챌 밖에서 클리어',
-            #     DetectorState.CLEARED, DetectorState.WAITING,
-            #     TimeoutDetector(ImageDetector('clear_frame.png'), 3)
-            # )
+            ActionHandler(
+                '어마챌 밖에서 클리어',
+                DetectorState.CLEARED, DetectorState.WAITING,
+                ContinueDetector(
+                    NotDetector(
+                        ImageDetector('./assets/images/clear.png')
+                    )
+                )
+            )
         ]
         self.current_state = DetectorState.WAITING
 

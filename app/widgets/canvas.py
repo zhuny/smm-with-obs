@@ -50,7 +50,7 @@ class MyWidget(QtWidgets.QWidget):
                     inp.update_value(info[inp.name])
 
     def create_start_button(self):
-        self.start_button = QPushButton("시작")
+        self.start_button = QPushButton("OBS 연결")
         self.start_button.clicked.connect(self.handle_start_button)
         self.timer = MyTimer(self)
 
