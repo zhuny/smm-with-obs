@@ -1,15 +1,12 @@
-import base64
 import datetime
-import itertools
-from io import BytesIO
 from pathlib import Path
 
 import obsws_python as obs
-from PIL import Image
 from PySide6.QtCore import QTimer
 from obsws_python.error import OBSSDKError, OBSSDKRequestError
 
 from app.detector import SMM2Detector
+from app.image import PillowImageWrapper
 
 
 class MyTimer(QTimer):
@@ -68,15 +65,18 @@ class MyTimer(QTimer):
         file_name = now.strftime("screenshot_%y%m%d%H%M%S.png")
         screen.save(folder / file_name)
 
-    def _get_screen(self):
+    def add_clear_number(self):
+        info = self._get_input_value()
+        self.parent().update_value('smm_clear_number', info['smm_clear_number'] + 1)
+
+    def _get_screen(self) -> PillowImageWrapper:
         info = self._get_input_value()
         screen_encoded = self.socket.get_source_screenshot(
             info['switch_layer'],
             'png', 960, 540, -1
         )
         image_data = screen_encoded.image_data.split(',', 1)[1]
-        screen_data = base64.b64decode(image_data)
-        return Image.open(BytesIO(screen_data))
+        return PillowImageWrapper.load_from_base64(image_data)
 
     def _connect_to_obs(self,
                         websocket_port, websocket_password,
