@@ -4,6 +4,7 @@ import time
 from PIL import ImageChops
 
 from app.image import PillowImageWrapper
+from app.installer_util import get_asset
 
 
 class DetectorState(enum.Enum):
@@ -198,7 +199,7 @@ class SMM2Detector:
                 DetectorState.CLEARED, DetectorState.WAITING,
                 ContinueDetector(
                     NotDetector(
-                        ImageDetector('./assets/images/clear.png')
+                        ImageDetector(get_asset('assets/images/clear.png'))
                     )
                 )
             )
