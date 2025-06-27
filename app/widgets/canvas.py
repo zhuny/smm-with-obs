@@ -20,6 +20,7 @@ class MyWidget(QtWidgets.QWidget):
         self.layout = QVBoxLayout(self)
         self.layout.addWidget(self.input_widget)
         self.layout.addWidget(self.start_button)
+        self.layout.addWidget(self.clear_add_button)
         self.layout.addWidget(self.screenshot_button)
         self.layout.addWidget(self.log_edit)
 
@@ -30,7 +31,8 @@ class MyWidget(QtWidgets.QWidget):
             InputPair("websocket_password", "OBS WebSocket 서버 비밀번호", is_password=True),
             InputPair("switch_layer", "스위치 화면 레이어"),
             InputPair("text_layer", "클리어 수 텍스트 레이어"),
-            InputPair("smm_clear_number", "클리어 수", is_number=True)
+            InputPair("smm_clear_number", "클리어 수", is_number=True),
+            InputPair("clear_yellow", "노랑색 RGB", default='#fad302')
         ]
         self.input_widget = QWidget()
         self.input_layout = QFormLayout(self.input_widget)
@@ -54,6 +56,9 @@ class MyWidget(QtWidgets.QWidget):
         self.start_button.clicked.connect(self.handle_start_button)
         self.timer = MyTimer(self)
 
+        self.clear_add_button = QPushButton("클수 ++")
+        self.clear_add_button.clicked.connect(self.add_clear_number)
+
         self.screenshot_button = QPushButton("스크린샷")
         self.screenshot_button.clicked.connect(self.timer.screenshot)
 
@@ -72,9 +77,15 @@ class MyWidget(QtWidgets.QWidget):
             for inp in self.input_list
         }
 
-    def push_log(self, msg):
+    def push_log(self, msg, is_rich=False):
+        if not is_rich:
+            msg = f'<span>{msg}</span>'
         self.log_list.insert(0, msg)
-        self.log_edit.setPlainText("\n".join(self.log_list))
+        if len(self.log_list) > 10_000:
+            self.log_list.pop()
+
+        # self.log_edit.setPlainText("\n".join(self.log_list))
+        self.log_edit.setHtml("<br />".join(self.log_list))
 
     def update_value(self, name, value):
         for handler in self.input_bind[name]:
@@ -86,3 +97,7 @@ class MyWidget(QtWidgets.QWidget):
 
     def bind_value(self, name, handler):
         self.input_bind[name].append(handler)
+
+    def add_clear_number(self):
+        info = self.get_input_value()
+        self.update_value('smm_clear_number', info['smm_clear_number'] + 1)
