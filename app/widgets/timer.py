@@ -24,7 +24,7 @@ class MyTimer(QTimer):
         if self._connect_to_obs(**parent.get_input_value()):
             parent.push_log("인식 시작")
             self.parent().bind_value('smm_clear_number', self.send_clear_number)
-            self.start(1000)
+            self.start(500)
         elif self.socket is not None:
             self.socket.disconnect()
             self.socket = None
@@ -37,14 +37,14 @@ class MyTimer(QTimer):
 
         screen = self._get_screen()
         if self.detector.run(screen, self):
-            self.delay = 2
+            self.delay = 4
 
     def send_clear_number(self, value):
-        info = self._get_input_value()
+        info = self.get_input_value()
         self.socket.set_input_settings(
             info['text_layer'],
             {
-                'text': f'{value:,}클'
+                'text': f'{value}클'
             },
             overlay=True
         )
@@ -66,11 +66,10 @@ class MyTimer(QTimer):
         screen.save(folder / file_name)
 
     def add_clear_number(self):
-        info = self._get_input_value()
-        self.parent().update_value('smm_clear_number', info['smm_clear_number'] + 1)
+        self.parent().add_clear_number()
 
     def _get_screen(self) -> PillowImageWrapper:
-        info = self._get_input_value()
+        info = self.get_input_value()
         screen_encoded = self.socket.get_source_screenshot(
             info['switch_layer'],
             'png', 960, 540, -1
@@ -123,5 +122,5 @@ class MyTimer(QTimer):
         except OBSSDKRequestError:
             return False
 
-    def _get_input_value(self):
+    def get_input_value(self):
         return self.parent().get_input_value()

@@ -20,6 +20,7 @@ class MyWidget(QtWidgets.QWidget):
         self.layout = QVBoxLayout(self)
         self.layout.addWidget(self.input_widget)
         self.layout.addWidget(self.start_button)
+        self.layout.addWidget(self.clear_add_button)
         self.layout.addWidget(self.screenshot_button)
         self.layout.addWidget(self.log_edit)
 
@@ -54,6 +55,9 @@ class MyWidget(QtWidgets.QWidget):
         self.start_button = QPushButton("OBS 연결")
         self.start_button.clicked.connect(self.handle_start_button)
         self.timer = MyTimer(self)
+
+        self.clear_add_button = QPushButton("클수 ++")
+        self.clear_add_button.clicked.connect(self.add_clear_number)
 
         self.screenshot_button = QPushButton("스크린샷")
         self.screenshot_button.clicked.connect(self.timer.screenshot)
@@ -93,3 +97,7 @@ class MyWidget(QtWidgets.QWidget):
 
     def bind_value(self, name, handler):
         self.input_bind[name].append(handler)
+
+    def add_clear_number(self):
+        info = self.get_input_value()
+        self.update_value('smm_clear_number', info['smm_clear_number'] + 1)
