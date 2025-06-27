@@ -30,7 +30,8 @@ class MyWidget(QtWidgets.QWidget):
             InputPair("websocket_password", "OBS WebSocket 서버 비밀번호", is_password=True),
             InputPair("switch_layer", "스위치 화면 레이어"),
             InputPair("text_layer", "클리어 수 텍스트 레이어"),
-            InputPair("smm_clear_number", "클리어 수", is_number=True)
+            InputPair("smm_clear_number", "클리어 수", is_number=True),
+            InputPair("clear_yellow", "노랑색 RGB", default='#fad302')
         ]
         self.input_widget = QWidget()
         self.input_layout = QFormLayout(self.input_widget)
@@ -72,9 +73,15 @@ class MyWidget(QtWidgets.QWidget):
             for inp in self.input_list
         }
 
-    def push_log(self, msg):
+    def push_log(self, msg, is_rich=False):
+        if not is_rich:
+            msg = f'<span>{msg}</span>'
         self.log_list.insert(0, msg)
-        self.log_edit.setPlainText("\n".join(self.log_list))
+        if len(self.log_list) > 10_000:
+            self.log_list.pop()
+
+        # self.log_edit.setPlainText("\n".join(self.log_list))
+        self.log_edit.setHtml("<br />".join(self.log_list))
 
     def update_value(self, name, value):
         for handler in self.input_bind[name]:

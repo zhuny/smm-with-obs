@@ -49,8 +49,8 @@ class MyTimer(QTimer):
             overlay=True
         )
 
-    def push_log(self, msg):
-        self.parent().push_log(msg)
+    def push_log(self, msg, is_rich=False):
+        self.parent().push_log(msg, is_rich=False)
 
     def screenshot(self):
         if self.socket is None:
